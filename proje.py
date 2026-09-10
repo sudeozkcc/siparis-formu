@@ -78,12 +78,11 @@ def siparis_mailleri_gonder(siparis_detaylari, musteri_eposta):
     SMTP_SUNUCU = "smtp.gmail.com"
     SMTP_PORT = 587
     
-  SISTEM_EPOSTA = "sudeozkoc@pantheralojistik.com.tr"  # Test için kullandığınız Gmail
-  SISTEM_SIFRE = "xqoz xjwt qtlp ijay"                 # Google'dan aldığınız 16 haneli şifre
-
-  SIZIN_EPOSTANIZ = "sudeozkoc@pantheralojistik.com.tr" # Sipariş maili kime gitsin istiyorsanız
+    # E-POSTA VE UYGULAMA ŞİFRENİZ
+    SISTEM_EPOSTA = "sudeozkoc@pantheralojistik.com.tr"
+    SISTEM_SIFRE = "xxxx xxxx xxxx xxxx"  # Gmail / Google Workspace'ten alınan 16 haneli Uygulama Şifresi
     
-    SIZIN_EPOSTANIZ = "operasyon@panthera.com"    # Siparişlerin düşmesini istediğiniz KENDİ mailiniz
+    SIZIN_EPOSTANIZ = "sudeozkoc@pantheralojistik.com.tr"  # Siparişlerin düşmesini istediğiniz adresiniz
 
     # 1. Size Giden Detaylı Sipariş Bildirimi
     konu_yonetici = f"🚨 YENİ SİPARİŞ: {siparis_detaylari['Firma']} - İrsaliye: {siparis_detaylari['İrsaliye']}"
