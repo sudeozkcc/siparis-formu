@@ -172,6 +172,8 @@ def siparis_mailleri_gonder(siparis_detaylari, musteri_epostaları_raw):
         try:
             server = smtplib.SMTP(SMTP_SUNUCU, SMTP_PORT)
             server.starttls()
+
+            print("SMTP ile giriş deneniyor:", gonderici["eposta"])
             server.login(gonderici["eposta"], gonderici["sifre"])
 
             # 1. Mail: Hedef Operasyon Ekibine Gönderim (Çoklu Alıcı)
