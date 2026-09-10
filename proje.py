@@ -80,7 +80,7 @@ def siparis_mailleri_gonder(siparis_detaylari, musteri_eposta):
     
     # E-POSTA VE UYGULAMA ŞİFRENİZ
     SISTEM_EPOSTA = "sudeozkoc@pantheralojistik.com.tr"
-    SISTEM_SIFRE = "xxxx xxxx xxxx xxxx"  # Gmail / Google Workspace'ten alınan 16 haneli Uygulama Şifresi
+    SISTEM_SIFRE = "xqoz xjwt qtlp ijay"  # Gmail / Google Workspace'ten alınan 16 haneli Uygulama Şifresi
     
     SIZIN_EPOSTANIZ = "sudeozkoc@pantheralojistik.com.tr"  # Siparişlerin düşmesini istediğiniz adresiniz
 
