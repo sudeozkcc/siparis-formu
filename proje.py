@@ -11,12 +11,8 @@ st.set_page_config(page_title="Panthera Lojistik Sipariş Portalı", layout="wid
 
 st.markdown("""
     <style>
-    /* Main Background & Font */
-    .main {
-        background-color: #f8f9fa;
-    }
+    .main { background-color: #f8f9fa; }
     
-    /* Header Banner */
     .header-banner {
         background: linear-gradient(135deg, #002060 0%, #004080 100%);
         color: white;
@@ -33,13 +29,8 @@ st.markdown("""
         margin: 0;
         letter-spacing: 1.5px;
     }
-    .header-banner p {
-        color: #d1e2ff;
-        margin-top: 8px;
-        font-size: 1.1rem;
-    }
+    .header-banner p { color: #d1e2ff; margin-top: 8px; font-size: 1.1rem; }
 
-    /* Section Subheaders */
     .section-title {
         color: #002060;
         font-weight: 600;
@@ -49,7 +40,6 @@ st.markdown("""
         margin-bottom: 15px;
     }
 
-    /* Custom Button Styling */
     .stButton>button {
         background-color: #002060 !important;
         color: white !important;
@@ -71,30 +61,47 @@ st.markdown("""
 
 
 # -------------------------------------------------------------
-# E-POSTA GÖNDERİM FONKSİYONU
+# E-POSTA GÖNDERİM FONKSİYONU (Çoklu Gönderici & Çoklu Alıcı)
 # -------------------------------------------------------------
-def siparis_mailleri_gonder(siparis_detaylari, musteri_eposta):
-    # SİSTEM VE SİZİN E-POSTA BİLGİLERİNİZ
+def siparis_mailleri_gonder(siparis_detaylari, musteri_epostaları_raw):
     SMTP_SUNUCU = "smtp.gmail.com"
     SMTP_PORT = 587
-    
-    # E-POSTA VE UYGULAMA ŞİFRENİZ
-    SISTEM_EPOSTA = "sudeozkoc@pantheralojistik.com.tr"
-    SISTEM_SIFRE = "xqoz xjwt qtlp ijay"  # Gmail / Google Workspace'ten alınan 16 haneli Uygulama Şifresi
-    
-    SIZIN_EPOSTANIZ = "sudeozkoc@pantheralojistik.com.tr"  # Siparişlerin düşmesini istediğiniz adresiniz
 
-    # 1. Size Giden Detaylı Sipariş Bildirimi
+    # ---------------------------------------------------------
+    # ⚠️ 1. SİSTEM GÖNDERİCİ MAİLLERİ (Birden fazla tanımlanabilir)
+    # Her hesap için "Uygulama Şifresi" girilmelidir.
+    # ---------------------------------------------------------
+    SISTEM_GONDERICI_HESAPLAR = [
+        {"eposta": "sudeozkoc@pantheralojistik.com.tr", "sifre": "xqoz xjwt qtlp ijay"},
+        # {"eposta": "sistem2@pantheralojistik.com.tr", "sifre": "yyyy yyyy yyyy yyyy"} <-- İkinci yedek sistem maili
+    ]
+
+    # ---------------------------------------------------------
+    # ⚠️ 2. HEDEF OPERASYON / İÇ EKİP ALICILARI (Çoklu Alıcı)
+    # ---------------------------------------------------------
+    HEDEF_OPERASYON_ALICILARI = [
+        "sudeozkoc@pantheralojistik.com.tr",
+        
+        
+    ]
+    # ---------------------------------------------------------
+
+    # 3. Müşterinin girdiği mail(leri) ayrıştır (virgül veya noktalı virgül ile çoklu yazabilir)
+    musteri_eposta_listesi = [
+        e.strip() for e in musteri_epostaları_raw.replace(";", ",").split(",") if e.strip()
+    ]
+
+    # Mail Şablonları
     konu_yonetici = f"🚨 YENİ SİPARİŞ: {siparis_detaylari['Firma']} - İrsaliye: {siparis_detaylari['İrsaliye']}"
     body_yonetici = f"""
     <div style="font-family: Arial, sans-serif; color: #333;">
         <h2 style="color: #002060;">Panthera Lojistik - Yeni Sipariş Bildirimi</h2>
-        <p><b>Sipariş Detayları Aşağıdadır:</b></p>
+        <p><b>Aşağıdaki müşteri yeni bir sipariş kaydı oluşturdu:</b></p>
         <hr style="border: 1px solid #002060;">
         <ul>
             <li><b>Sipariş Veren Firma:</b> {siparis_detaylari['Firma']}</li>
             <li><b>Yetkili Adı Soyadı:</b> {siparis_detaylari['Yetkili']}</li>
-            <li><b>Müşteri E-Posta:</b> {musteri_eposta}</li>
+            <li><b>Müşteri İletişim E-Posta(ları):</b> {', '.join(musteri_eposta_listesi)}</li>
             <li><b>İrsaliye Numarası:</b> {siparis_detaylari['İrsaliye']}</li>
             <li><b>Planlanan Teslim Tarihi:</b> {siparis_detaylari['Teslim Tarihi']}</li>
         </ul>
@@ -140,7 +147,6 @@ def siparis_mailleri_gonder(siparis_detaylari, musteri_eposta):
     </div>
     """
 
-    # 2. Müşteriye Giden Onay Maili
     konu_musteri = f"✅ Siparişiniz Alındı - {siparis_detaylari['Firma']} (İrsaliye: {siparis_detaylari['İrsaliye']})"
     body_musteri = f"""
     <div style="font-family: Arial, sans-serif; color: #333;">
@@ -161,33 +167,38 @@ def siparis_mailleri_gonder(siparis_detaylari, musteri_eposta):
     </div>
     """
 
-    try:
-        server = smtplib.SMTP(SMTP_SUNUCU, SMTP_PORT)
-        server.starttls()
-        server.login(SISTEM_EPOSTA, SISTEM_SIFRE)
+    # Gönderici hesaplar üzerinden mail gönderme denemesi
+    for gonderici in SISTEM_GONDERICI_HESAPLAR:
+        try:
+            server = smtplib.SMTP(SMTP_SUNUCU, SMTP_PORT)
+            server.starttls()
+            server.login(gonderici["eposta"], gonderici["sifre"])
 
-        # Mail 1: Operasyona/Size
-        msg1 = MIMEMultipart()
-        msg1['From'] = f"Panthera Sipariş Portalı <{SISTEM_EPOSTA}>"
-        msg1['To'] = SIZIN_EPOSTANIZ
-        msg1['Reply-To'] = musteri_eposta
-        msg1['Subject'] = konu_yonetici
-        msg1.attach(MIMEText(body_yonetici, 'html'))
-        server.send_message(msg1)
+            # 1. Mail: Hedef Operasyon Ekibine Gönderim (Çoklu Alıcı)
+            msg1 = MIMEMultipart()
+            msg1['From'] = f"Panthera Sipariş Portalı <{gonderici['eposta']}>"
+            msg1['To'] = ", ".join(HEDEF_OPERASYON_ALICILARI)
+            msg1['Reply-To'] = ", ".join(musteri_eposta_listesi)
+            msg1['Subject'] = konu_yonetici
+            msg1.attach(MIMEText(body_yonetici, 'html'))
+            server.send_message(msg1)
 
-        # Mail 2: Müşteriye
-        msg2 = MIMEMultipart()
-        msg2['From'] = f"Panthera Lojistik <{SISTEM_EPOSTA}>"
-        msg2['To'] = musteri_eposta
-        msg2['Subject'] = konu_musteri
-        msg2.attach(MIMEText(body_musteri, 'html'))
-        server.send_message(msg2)
+            # 2. Mail: Müşterinin Girdiği Mail(ler)e Onay Gönderimi (Çoklu Müşteri Alıcısı)
+            msg2 = MIMEMultipart()
+            msg2['From'] = f"Panthera Lojistik <{gonderici['eposta']}>"
+            msg2['To'] = ", ".join(musteri_eposta_listesi)
+            msg2['Subject'] = konu_musteri
+            msg2.attach(MIMEText(body_musteri, 'html'))
+            server.send_message(msg2)
 
-        server.quit()
-        return True
-    except Exception as e:
-        print("Mail Gönderim Hatası:", e)
-        return False
+            server.quit()
+            return True, "Başarılı"
+        except Exception as e:
+            # Biri hata verirse döngü devam edip sonraki sistem göndericisini dener
+            last_error = str(e)
+            continue
+
+    return False, last_error
 
 
 # -------------------------------------------------------------
@@ -221,7 +232,6 @@ HAZIR_DEPOLAR = [
 # ARAYÜZ (FRONTEND)
 # -------------------------------------------------------------
 
-# Kurumsal Üst Banner
 st.markdown("""
     <div class="header-banner">
         <h1>PANTHERA LOJİSTİK SİPARİŞ PORTALI</h1>
@@ -238,7 +248,7 @@ with col_f1:
 with col_f2:
     yetkili_ad = st.text_input("Sipariş Veren Yetkili Adı Soyadı *")
 with col_f3:
-    musteri_eposta = st.text_input("E-Posta Adresiniz (Onay Maili Gönderilecektir) *")
+    musteri_eposta = st.text_input("E-Posta Adresiniz (Birden fazla ise virgül ile ayırınız) *", help="Örn: ahmet@firma.com, mehmet@firma.com")
 
 # 2. BÖLÜM: TESLİMAT NOKTASI VE ADRES BİLGİLERİ
 st.markdown('<h3 class="section-title">2. Teslimat Noktası ve Adres Seçimi</h3>', unsafe_allow_html=True)
@@ -251,7 +261,6 @@ secilen_depo_kodu = st.selectbox(
     index=0
 )
 
-# Adres Otomatik Doldurma veya Manuel Giriş Mantığı
 secilen_hazir_depo = next((d for d in HAZIR_DEPOLAR if d["kod"] == secilen_depo_kodu), None)
 
 if secilen_depo_kodu == "➕ Listede Yok / Yeni Adres Gireceğim":
@@ -288,7 +297,7 @@ st.markdown('<h3 class="section-title">3. Yük ve İrsaliye Detayları</h3>', un
 col_d1, col_d2, col_d3 = st.columns(3)
 
 with col_d1:
-    irsaliye_no = st.text_input("İrsaliye Numarası *")
+    irsaliye_no = st.text_input("İrsaliye Numarası (İlk 3 Harf + 13 Rakam = 16 Karakter) *", max_chars=16, help="Örn: ABC2026000001234")
     teslim_tarihi = st.date_input("Planlanan Teslim Tarihi *", value=date.today())
     aciklama = st.text_input("Açıklama / Özel Notlar")
 
@@ -309,18 +318,29 @@ st.markdown("<br>", unsafe_allow_html=True)
 # GÖNDER BUTONU VE KONTROLLER
 # -------------------------------------------------------------
 if st.button("🚀 Siparişi Onayla ve Gönder", use_container_width=True):
-    # Zorunlu alan kontrolleri
-    if not siparis_veren or not yetkili_ad or not musteri_eposta or not irsaliye_no or secilen_depo_kodu == "Seçiniz...":
+    irsaliye_clean = irsaliye_no.strip()
+    
+    # 1. Zorunlu Alan Kontrolü
+    if not siparis_veren or not yetkili_ad or not musteri_eposta or not irsaliye_clean or secilen_depo_kodu == "Seçiniz...":
         st.error("❌ Lütfen kırmızı yıldızlı (*) zorunlu alanları (Firma, Yetkili, E-Posta, İrsaliye No, Teslimat Noktası) doldurunuz!")
+    
+    # 2. İrsaliye Numarası Format Kontrolü (Tam 16 Karakter ve İlk 3'ü Harf)
+    elif len(irsaliye_clean) != 16 or not irsaliye_clean[:3].isalpha():
+        st.error("❌ İrsaliye Numarası geçersiz! İrsaliye No **tam 16 karakter** olmalı ve **ilk 3 karakteri harf** içermelidir (Örn: ABC2026000001234).")
+    
+    # 3. Yeni Adres Kontrolü
     elif secilen_depo_kodu == "➕ Listede Yok / Yeni Adres Gireceğim" and (not il or not ilce or not acik_adres or not posta_kodu):
-        st.error("❌ Yeni adres ekleme seçeneğini seçtiniz. Lütfen Şehir, İlçe, Açık Adres ve Posta Kodu alanlarını eksiksiz doldurunuz!")
+        st.error("❌ Yeni adres seçeneğini seçtiniz. Lütfen Şehir, İlçe, Açık Adres ve Posta Kodu alanlarını doldurunuz!")
+    
+    # 4. Yük Miktarı Kontrolü
     elif (kuru_palet + soguk_palet + donuk_palet) == 0 and koli_sayisi == 0:
         st.warning("⚠️ Lütfen en az bir adet Palet veya Koli miktarı giriniz!")
+    
     else:
         siparis_verileri = {
             "Firma": siparis_veren,
             "Yetkili": yetkili_ad,
-            "İrsaliye": irsaliye_no,
+            "İrsaliye": irsaliye_clean,
             "Depo Kodu": secilen_depo_kodu,
             "İl": il,
             "İlçe": ilce,
@@ -338,11 +358,12 @@ if st.button("🚀 Siparişi Onayla ve Gönder", use_container_width=True):
             "Açıklama": aciklama if aciklama else "Yok"
         }
         
-        with st.spinner("Siparişiniz iletiliyor, lütfen bekleyiniz..."):
-            basari = siparis_mailleri_gonder(siparis_verileri, musteri_eposta)
+        with st.spinner("Sipariş iletiliyor..."):
+            basari, hata_mesaji = siparis_mailleri_gonder(siparis_verileri, musteri_eposta)
         
         if basari:
-            st.success(f"🎉 Siparişiniz Panthera Operasyon ekibimize iletilmiştir! Onay e-postası '{musteri_eposta}' adresine gönderildi.")
+            st.success(f"🎉 Siparişiniz operasyon ekibimize iletilmiştir! Onay e-postası belirtilen müşteri adres(ler)ine gönderildi.")
             st.balloons()
         else:
-            st.error("Sipariş kaydedildi ancak e-posta gönderiminde bir aksaklık oluştu. Lütfen bilgileri kontrol ediniz.")
+            st.error(f"❌ E-posta gönderilemedi! Hata Detayı: {hata_mesaji}")
+            st.info("💡 **İpucu:** Lütfen `SISTEM_GONDERICI_HESAPLAR` alanındaki Gmail şifrenizin normal şifre değil, Google 'Uygulama Şifresi' olduğunu doğrulayın.")
