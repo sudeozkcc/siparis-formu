@@ -72,7 +72,7 @@ def siparis_mailleri_gonder(siparis_detaylari, musteri_epostaları_raw):
     # Her hesap için "Uygulama Şifresi" girilmelidir.
     # ---------------------------------------------------------
     SISTEM_GONDERICI_HESAPLAR = [
-        {"eposta": "yildizsususu@gmail.com", "sifre": "mcgh pjga gzzw ioha"},
+        {"eposta": "yildizsususu@gmail.com", "sifre": "mcghpjgagzzwioha"},
         # {"eposta": "sistem2@pantheralojistik.com.tr", "sifre": "yyyy yyyy yyyy yyyy"} <-- İkinci yedek sistem maili
     ]
 
