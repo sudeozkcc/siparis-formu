@@ -72,7 +72,7 @@ def siparis_mailleri_gonder(siparis_detaylari, musteri_epostaları_raw):
     # Her hesap için "Uygulama Şifresi" girilmelidir.
     # ---------------------------------------------------------
     SISTEM_GONDERICI_HESAPLAR = [
-        {"eposta": "yildizsususu@gmail.com", "sifre": "mcghpjgagzzwioha"},
+        {"eposta": "yildizsususu@gmail.com", "sifre": "frbfqtcneiyoqpre"},
         # {"eposta": "sistem2@pantheralojistik.com.tr", "sifre": "yyyy yyyy yyyy yyyy"} <-- İkinci yedek sistem maili
     ]
 
@@ -175,6 +175,7 @@ def siparis_mailleri_gonder(siparis_detaylari, musteri_epostaları_raw):
 
             print("SMTP ile giriş deneniyor:", gonderici["eposta"])
             server.login(gonderici["eposta"], gonderici["sifre"])
+            print("Giriş başarılı!")
 
             # 1. Mail: Hedef Operasyon Ekibine Gönderim (Çoklu Alıcı)
             msg1 = MIMEMultipart()
