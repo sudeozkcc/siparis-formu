@@ -1,8 +1,11 @@
 import streamlit as st
 from datetime import date
 import smtplib
+import pandas as pd
+import io
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
 
 # -------------------------------------------------------------
 # Sayfa Yapılandırması & Özel CSS (Koyu Mavi / Beyaz Tema)
@@ -61,42 +64,106 @@ st.markdown("""
 
 
 # -------------------------------------------------------------
-# E-POSTA GÖNDERİM FONKSİYONU (Çoklu Gönderici & Çoklu Alıcı)
+# EXCEL OLUŞTURMA FONKSİYONU (Bellekte Çalışır)
+# -------------------------------------------------------------
+def excel_olustur(siparis_detaylari):
+    # Verileri Excel için Anahtar-Değer Tablosuna Dönüştür
+    veri = {
+        "Alan": [
+            "Sipariş Veren Firma",
+            "Yetkili Adı Soyadı",
+            "İrsaliye Numarası",
+            "Planlanan Teslim Tarihi",
+            "Teslimat Depo / Adres Kodu",
+            "İl",
+            "İlçe",
+            "Posta Kodu",
+            "Açık Adres",
+            "Teslimat Kontak/Tel",
+            "Koli Sayısı",
+            "Kuru Palet Sayısı",
+            "Soğuk Palet (+4°C) Sayısı",
+            "Donuk Palet (-18°C) Sayısı",
+            "Kuru Yük KG",
+            "Soğuk Yük (+4°C) KG",
+            "Donuk Yük (-18°C) KG",
+            "Toplam Palet Sayısı",
+            "Açıklama / Özel Notlar"
+        ],
+        "Değer": [
+            siparis_detaylari['Firma'],
+            siparis_detaylari['Yetkili'],
+            siparis_detaylari['İrsaliye'],
+            siparis_detaylari['Teslim Tarihi'],
+            siparis_detaylari['Depo Kodu'],
+            siparis_detaylari['İl'],
+            siparis_detaylari['İlçe'],
+            siparis_detaylari['Posta Kodu'],
+            siparis_detaylari['Adres'],
+            siparis_detaylari['Yetkili Tel'],
+            siparis_detaylari['Koli'],
+            siparis_detaylari['Kuru Palet'],
+            siparis_detaylari['Soğuk Palet'],
+            siparis_detaylari['Donuk Palet'],
+            siparis_detaylari['Kuru KG'],
+            siparis_detaylari['Soğuk KG'],
+            siparis_detaylari['Donuk KG'],
+            siparis_detaylari['Kuru Palet'] + siparis_detaylari['Soğuk Palet'] + siparis_detaylari['Donuk Palet'],
+            siparis_detaylari['Açıklama']
+        ]
+    }
+    
+    df = pd.DataFrame(veri)
+    
+    # Excel dosyasını diske yazmadan ram üzerinde (BytesIO) tutalım
+    excel_buffer = io.BytesIO()
+    with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Sipariş Detayı')
+    
+    excel_buffer.seek(0)
+    return excel_buffer.getvalue()
+
+
+# -------------------------------------------------------------
+# E-POSTA GÖNDERİM FONKSİYONU (Çoklu Gönderici & Excel Ekli)
 # -------------------------------------------------------------
 def siparis_mailleri_gonder(siparis_detaylari, musteri_epostaları_raw):
     SMTP_SUNUCU = "smtp.gmail.com"
     SMTP_PORT = 587
 
     # ---------------------------------------------------------
-    # ⚠️ 1. SİSTEM GÖNDERİCİ MAİLLERİ (Birden fazla tanımlanabilir)
-    # Her hesap için "Uygulama Şifresi" girilmelidir.
+    # ⚠️ 1. SİSTEM GÖNDERİCİ MAİLLERİ
     # ---------------------------------------------------------
     SISTEM_GONDERICI_HESAPLAR = [
-        {"eposta": "yildizsususu@gmail.com", "sifre": "frbfqtcneiyoqpre"},
-        # {"eposta": "sistem2@pantheralojistik.com.tr", "sifre": "yyyy yyyy yyyy yyyy"} <-- İkinci yedek sistem maili
+        {"eposta": "yildizsususu@gmail.com", "sifre": "frbfqtcneiyoqpre"}, # Google Uygulama Şifresi girilmelidir
     ]
 
     # ---------------------------------------------------------
-    # ⚠️ 2. HEDEF OPERASYON / İÇ EKİP ALICILARI (Çoklu Alıcı)
+    # ⚠️ 2. HEDEF OPERASYON / İÇ EKİP ALICILARI
     # ---------------------------------------------------------
     HEDEF_OPERASYON_ALICILARI = [
         "sudeozkoc@pantheralojistik.com.tr",
-        
-        
     ]
     # ---------------------------------------------------------
 
-    # 3. Müşterinin girdiği mail(leri) ayrıştır (virgül veya noktalı virgül ile çoklu yazabilir)
+    # 3. Müşteri maillerini ayrıştır
     musteri_eposta_listesi = [
         e.strip() for e in musteri_epostaları_raw.replace(";", ",").split(",") if e.strip()
     ]
 
-    # Mail Şablonları
-    konu_yonetici = f"🚨 YENİ SİPARİŞ: {siparis_detaylari['Firma']} - İrsaliye: {siparis_detaylari['İrsaliye']}"
+    # 4. Excel Dosyasını Oluştur
+    excel_data = excel_olustur(siparis_detaylari)
+    excel_dosya_adi = f"{siparis_detaylari['Firma']}_Siparisi_{siparis_detaylari['İrsaliye']}.xlsx"
+
+    # E-Posta Konuları (Firma Adı içerecek şekilde düzenlendi)
+    konu_yonetici = f"🚨 {siparis_detaylari['Firma']} Siparişi - İrsaliye No: {siparis_detaylari['İrsaliye']}"
+    konu_musteri = f"✅ {siparis_detaylari['Firma']} Siparişi Alındı - İrsaliye No: {siparis_detaylari['İrsaliye']}"
+
+    # E-posta İçerikleri
     body_yonetici = f"""
     <div style="font-family: Arial, sans-serif; color: #333;">
-        <h2 style="color: #002060;">Panthera Lojistik - Yeni Sipariş Bildirimi</h2>
-        <p><b>Aşağıdaki müşteri yeni bir sipariş kaydı oluşturdu:</b></p>
+        <h2 style="color: #002060;">Panthera Lojistik - {siparis_detaylari['Firma']} Siparişi</h2>
+        <p><b>{siparis_detaylari['Firma']}</b> firmasından yeni bir sipariş kaydı oluşturuldu. Siparişe ait Excel detay dosyası ektedir.</p>
         <hr style="border: 1px solid #002060;">
         <ul>
             <li><b>Sipariş Veren Firma:</b> {siparis_detaylari['Firma']}</li>
@@ -105,54 +172,16 @@ def siparis_mailleri_gonder(siparis_detaylari, musteri_epostaları_raw):
             <li><b>İrsaliye Numarası:</b> {siparis_detaylari['İrsaliye']}</li>
             <li><b>Planlanan Teslim Tarihi:</b> {siparis_detaylari['Teslim Tarihi']}</li>
         </ul>
-        
-        <h3 style="color: #002060;">Teslimat Adresi Bilgileri</h3>
-        <p>
-            <b>Teslimat Noktası:</b> {siparis_detaylari['Depo Kodu']}<br>
-            <b>Açık Adres:</b> {siparis_detaylari['Adres']}<br>
-            <b>İl / İlçe:</b> {siparis_detaylari['İlçe']} / {siparis_detaylari['İl']}<br>
-            <b>Posta Kodu:</b> {siparis_detaylari['Posta Kodu']}<br>
-            <b>Teslimat Kontak/Tel:</b> {siparis_detaylari['Yetkili Tel']}
-        </p>
-
-        <h3 style="color: #002060;">Yük ve Palet Detayları</h3>
-        <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; border-color: #ddd;">
-            <tr style="background-color: #002060; color: white;">
-                <th>Kategori</th>
-                <th>Koli Sayısı</th>
-                <th>Palet Sayısı</th>
-                <th>Ağırlık (KG)</th>
-            </tr>
-            <tr>
-                <td><b>Kuru Yük</b></td>
-                <td>{siparis_detaylari['Koli']}</td>
-                <td>{siparis_detaylari['Kuru Palet']}</td>
-                <td>{siparis_detaylari['Kuru KG']} KG</td>
-            </tr>
-            <tr style="background-color: #f9f9f9;">
-                <td><b>Soğuk Yük (+4°C)</b></td>
-                <td>-</td>
-                <td>{siparis_detaylari['Soğuk Palet']}</td>
-                <td>{siparis_detaylari['Soğuk KG']} KG</td>
-            </tr>
-            <tr>
-                <td><b>Donuk Yük (-18°C)</b></td>
-                <td>-</td>
-                <td>{siparis_detaylari['Donuk Palet']}</td>
-                <td>{siparis_detaylari['Donuk KG']} KG</td>
-            </tr>
-        </table>
         <br>
-        <p><b>Açıklama / Özel Notlar:</b> {siparis_detaylari['Açıklama']}</p>
+        <p><i>Detaylı palet, adres ve koli bilgileri için ekteki Excel dosyasını inceleyebilirsiniz.</i></p>
     </div>
     """
 
-    konu_musteri = f"✅ Siparişiniz Alındı - {siparis_detaylari['Firma']} (İrsaliye: {siparis_detaylari['İrsaliye']})"
     body_musteri = f"""
     <div style="font-family: Arial, sans-serif; color: #333;">
         <h2 style="color: #002060;">Panthera Lojistik Sipariş Portalı</h2>
         <p>Sayın <b>{siparis_detaylari['Yetkili']}</b>,</p>
-        <p>Sipariş talebiniz operasyon ekibimize başarıyla ulaşmıştır ve işleme alınmıştır.</p>
+        <p><b>{siparis_detaylari['Firma']}</b> adına oluşturmuş olduğunuz sipariş talebiniz operasyon ekibimize başarıyla ulaşmıştır. Siparişinizin Excel formatındaki detay örneği ektedir.</p>
         <hr style="border: 1px solid #002060;">
         <p><b>Sipariş Özetiniz:</b></p>
         <ul>
@@ -167,37 +196,47 @@ def siparis_mailleri_gonder(siparis_detaylari, musteri_epostaları_raw):
     </div>
     """
 
+    last_error = ""
+
     # Gönderici hesaplar üzerinden mail gönderme denemesi
     for gonderici in SISTEM_GONDERICI_HESAPLAR:
         try:
             server = smtplib.SMTP(SMTP_SUNUCU, SMTP_PORT)
             server.starttls()
-
-            print("SMTP ile giriş deneniyor:", gonderici["eposta"])
             server.login(gonderici["eposta"], gonderici["sifre"])
-            print("Giriş başarılı!")
 
-            # 1. Mail: Hedef Operasyon Ekibine Gönderim (Çoklu Alıcı)
+            # --- 1. Mail: Operasyon Ekibine Gönderim (Excel Ekli) ---
             msg1 = MIMEMultipart()
             msg1['From'] = f"Panthera Sipariş Portalı <{gonderici['eposta']}>"
             msg1['To'] = ", ".join(HEDEF_OPERASYON_ALICILARI)
             msg1['Reply-To'] = ", ".join(musteri_eposta_listesi)
             msg1['Subject'] = konu_yonetici
             msg1.attach(MIMEText(body_yonetici, 'html'))
+
+            # Excel Dosyası Ekleme
+            attachment1 = MIMEApplication(excel_data, Name=excel_dosya_adi)
+            attachment1['Content-Disposition'] = f'attachment; filename="{excel_dosya_adi}"'
+            msg1.attach(attachment1)
+
             server.send_message(msg1)
 
-            # 2. Mail: Müşterinin Girdiği Mail(ler)e Onay Gönderimi (Çoklu Müşteri Alıcısı)
+            # --- 2. Mail: Müşteriye Onay Gönderimi (Excel Ekli) ---
             msg2 = MIMEMultipart()
             msg2['From'] = f"Panthera Lojistik <{gonderici['eposta']}>"
             msg2['To'] = ", ".join(musteri_eposta_listesi)
             msg2['Subject'] = konu_musteri
             msg2.attach(MIMEText(body_musteri, 'html'))
+
+            # Excel Dosyası Ekleme
+            attachment2 = MIMEApplication(excel_data, Name=excel_dosya_adi)
+            attachment2['Content-Disposition'] = f'attachment; filename="{excel_dosya_adi}"'
+            msg2.attach(attachment2)
+
             server.send_message(msg2)
 
             server.quit()
             return True, "Başarılı"
         except Exception as e:
-            # Biri hata verirse döngü devam edip sonraki sistem göndericisini dener
             last_error = str(e)
             continue
 
@@ -361,11 +400,11 @@ if st.button("🚀 Siparişi Onayla ve Gönder", use_container_width=True):
             "Açıklama": aciklama if aciklama else "Yok"
         }
         
-        with st.spinner("Sipariş iletiliyor..."):
+        with st.spinner("Sipariş işleniyor ve Excel dosyası e-postaya ekleniyor..."):
             basari, hata_mesaji = siparis_mailleri_gonder(siparis_verileri, musteri_eposta)
         
         if basari:
-            st.success(f"🎉 Siparişiniz operasyon ekibimize iletilmiştir! Onay e-postası belirtilen müşteri adres(ler)ine gönderildi.")
+            st.success("🎉 Siparişiniz Excel dosyası olarak operasyon ekibine ve e-posta adreslerinize başarıyla gönderildi!")
             st.balloons()
         else:
             st.error(f"❌ E-posta gönderilemedi! Hata Detayı: {hata_mesaji}")
