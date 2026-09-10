@@ -78,9 +78,10 @@ def siparis_mailleri_gonder(siparis_detaylari, musteri_eposta):
     SMTP_SUNUCU = "smtp.gmail.com"
     SMTP_PORT = 587
     
-    # TEST İÇİN GMAIL BİLGİLERİNİZİ BURAYA YAZIN
-    SISTEM_EPOSTA = "sistem.panthera@gmail.com"  # Bildirimleri gönderen Gmail adresiniz
-    SISTEM_SIFRE = "xxxx xxxx xxxx xxxx"          # Gmail'den alacağınız 16 haneli Uygulama Şifresi
+  SISTEM_EPOSTA = "sudeozkoc@pantheralojistik.com.tr"  # Test için kullandığınız Gmail
+  SISTEM_SIFRE = "xqoz xjwt qtlp ijay"                 # Google'dan aldığınız 16 haneli şifre
+
+  SIZIN_EPOSTANIZ = "sudeozkoc@pantheralojistik.com.tr" # Sipariş maili kime gitsin istiyorsanız
     
     SIZIN_EPOSTANIZ = "operasyon@panthera.com"    # Siparişlerin düşmesini istediğiniz KENDİ mailiniz
 
