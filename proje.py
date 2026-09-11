@@ -1,8 +1,8 @@
 import streamlit as st
 from datetime import date
 import smtplib
-import pandas as pd
 import io
+import os
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from email.mime.text import MIMEText
@@ -66,67 +66,80 @@ st.markdown("""
 
 
 # -------------------------------------------------------------
-# EXCEL OLUŞTURMA FONKSİYONU (Orijinal Sipariş Formu Formatında)
+# EXCEL OLUŞTURMA FONKSİYONU (Orijinal Şablon Üzerine Yazan Yapı)
 # -------------------------------------------------------------
 def excel_olustur(siparis_detaylari):
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = "Sipariş Formu"
+    template_filename_xlsx = "Kopya Sipariş Formu.xlsx"
+    template_filename_xls = "Kopya Sipariş Formu.xls"
+    
+    # Mevcut şablon dosyasını bul ya da sıfırdan aynı görseli oluştur
+    if os.path.exists(template_filename_xlsx):
+        wb = openpyxl.load_workbook(template_filename_xlsx)
+        ws = wb.active
+    else:
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Boş Form"
 
-    # Stiller
-    header_font = Font(name="Calibri", size=10, bold=True, color="FFFFFF")
-    bold_font = Font(name="Calibri", size=10, bold=True)
+        # Görsel Stiller
+        header_font = Font(name="Calibri", size=10, bold=True, color="FFFFFF")
+        bold_font = Font(name="Calibri", size=10, bold=True)
+        blue_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
+        thin_border = Border(
+            left=Side(style='thin', color='000000'),
+            right=Side(style='thin', color='000000'),
+            top=Side(style='thin', color='000000'),
+            bottom=Side(style='thin', color='000000')
+        )
+        center_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        
+        # Başlık Etiketleri (C2:C4)
+        ws.cell(row=2, column=3, value="Sipariş Veren Firma Adı").font = bold_font
+        ws.cell(row=3, column=3, value="Yetkili Adı ve Soyadı").font = bold_font
+        ws.cell(row=4, column=3, value="Sipariş Tarihi").font = bold_font
+
+        # Kırmızı Uyarı Notu (I2)
+        ws.cell(row=2, column=9, value="Palet sayısı ile birlikte kg miktarını da yazmayı unutmayınız.").font = Font(italic=True, bold=True, color="FF0000", size=9)
+
+        # Tablo Başlıkları (Row 5)
+        headers = [
+            "İRSALİYE NUMARASI",
+            "TESLİMAT NOKTASI\n(Bayi ya da zincir mağaza adı )",
+            "TESLİMAT NOKTASI YETKİLİ VE İLETİŞİM BİLGİSİ",
+            "GİDİLECEK ŞEHİR",
+            "AÇIKLAMA",
+            "TESLİM TARİHİ",
+            "KOLİ SAYISI",
+            "KURU PALET SAYISI",
+            "SOĞUK PALET SAYISI (+4C)",
+            "DONUK PALET SAYISI (-18C)",
+            "KURU KG",
+            "SOĞUK KG",
+            "DONUK KG"
+        ]
+        for col_idx, header in enumerate(headers, start=3):
+            c = ws.cell(row=5, column=col_idx, value=header)
+            c.font = header_font
+            c.fill = blue_fill
+            c.alignment = center_align
+            c.border = thin_border
+
+    # --- Şablon Üzerine Kullanıcı Verilerini Doldurma ---
     regular_font = Font(name="Calibri", size=10)
-    
-    blue_fill = PatternFill(start_color="002060", end_color="002060", fill_type="solid")
-    gray_fill = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
-    
     thin_border = Border(
-        left=Side(style='thin', color='A6A6A6'),
-        right=Side(style='thin', color='A6A6A6'),
-        top=Side(style='thin', color='A6A6A6'),
-        bottom=Side(style='thin', color='A6A6A6')
+        left=Side(style='thin', color='000000'),
+        right=Side(style='thin', color='000000'),
+        top=Side(style='thin', color='000000'),
+        bottom=Side(style='thin', color='000000')
     )
     center_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    left_align = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
-    # 1-3. Satırlar: Başlık Bilgileri
-    ws.cell(row=2, column=3, value="Sipariş Veren Firma Adı").font = bold_font
+    # Üst bilgiler (D2, D3, D4 hücreleri)
     ws.cell(row=2, column=4, value=siparis_detaylari['Firma']).font = regular_font
-    
-    ws.cell(row=3, column=3, value="Yetkili Adı ve Soyadı").font = bold_font
     ws.cell(row=3, column=4, value=siparis_detaylari['Yetkili']).font = regular_font
-    
-    ws.cell(row=4, column=3, value="Sipariş Tarihi").font = bold_font
     ws.cell(row=4, column=4, value=str(date.today())).font = regular_font
-    
-    ws.cell(row=2, column=9, value="Palet sayısı ile birlikte kg miktarını da yazmayı unutmayınız.").font = Font(italic=True, color="FF0000", size=9)
 
-    # 5. Satır: Tablo Başlıkları
-    headers = [
-        "İRSALİYE NUMARASI",
-        "TESLİMAT NOKTASI (Bayi ya da zincir mağaza adı)",
-        "TESLİMAT NOKTASI YETKİLİ VE İLETİŞİM BİLGİSİ",
-        "GİDİLECEK ŞEHİR",
-        "AÇIKLAMA",
-        "TESLİM TARİHİ",
-        "KOLİ SAYISI",
-        "KURU PALET SAYISI",
-        "SOĞUK PALET SAYISI (+4C)",
-        "DONUK PALET SAYISI (-18C)",
-        "KURU KG",
-        "SOĞUK KG",
-        "DONUK KG"
-    ]
-
-    for col_idx, header in enumerate(headers, start=3):
-        cell = ws.cell(row=5, column=col_idx, value=header)
-        cell.font = header_font
-        cell.fill = blue_fill
-        cell.alignment = center_align
-        cell.border = thin_border
-
-    # 6. Satır: Sipariş Verileri
+    # Sipariş Satırı Verileri (6. Satır, C6 - O6 arası)
     teslimat_noktasi = f"{siparis_detaylari['Depo Kodu']} - {siparis_detaylari['Adres']}"
     row_values = [
         siparis_detaylari['İrsaliye'],
@@ -148,37 +161,7 @@ def excel_olustur(siparis_detaylari):
         cell = ws.cell(row=6, column=col_idx, value=val)
         cell.font = regular_font
         cell.border = thin_border
-        cell.alignment = center_align if col_idx not in [4, 7] else left_align
-
-    # 7. Satır: Toplam Satırı
-    toplam_label = ws.cell(row=7, column=8, value="TOPLAM")
-    toplam_label.font = bold_font
-    toplam_label.fill = gray_fill
-    toplam_label.alignment = center_align
-    toplam_label.border = thin_border
-
-    toplam_hesaplar = [
-        siparis_detaylari['Koli'],
-        siparis_detaylari['Kuru Palet'],
-        siparis_detaylari['Soğuk Palet'],
-        siparis_detaylari['Donuk Palet'],
-        siparis_detaylari['Kuru KG'],
-        siparis_detaylari['Soğuk KG'],
-        siparis_detaylari['Donuk KG']
-    ]
-
-    for idx, val in enumerate(toplam_hesaplar, start=9):
-        cell = ws.cell(row=7, column=idx, value=val)
-        cell.font = bold_font
-        cell.fill = gray_fill
         cell.alignment = center_align
-        cell.border = thin_border
-
-    # Genişlik Ayarları
-    for col in ws.columns:
-        max_len = max(len(str(cell.value or '')) for cell in col)
-        col_letter = openpyxl.utils.get_column_letter(col[0].column)
-        ws.column_dimensions[col_letter].width = max(max_len + 3, 12)
 
     excel_buffer = io.BytesIO()
     wb.save(excel_buffer)
@@ -214,7 +197,7 @@ def siparis_mailleri_gonder(siparis_detaylari, musteri_epostaları_raw):
     body_yonetici = f"""
     <div style="font-family: Arial, sans-serif; color: #333;">
         <h2 style="color: #002060;">Panthera Lojistik - {siparis_detaylari['Firma']} Siparişi</h2>
-        <p><b>{siparis_detaylari['Firma']}</b> firmasından yeni bir sipariş kaydı oluşturuldu. Standart form formatındaki Excel dosyası ektedir.</p>
+        <p><b>{siparis_detaylari['Firma']}</b> firmasından yeni bir sipariş kaydı oluşturuldu. Orijinal form formatındaki Excel dosyası ektedir.</p>
         <hr style="border: 1px solid #002060;">
         <ul>
             <li><b>Sipariş Veren Firma:</b> {siparis_detaylari['Firma']}</li>
@@ -398,9 +381,9 @@ with col_d2:
     donuk_palet = st.number_input("Donuk Palet (-18°C) Sayısı", min_value=0, step=1, value=0)
 
 with col_d3:
-    kuru_kg = st.number_input("Kuru Yük KG", min_value=0.0, step=10.0, value=0.0)
-    soguk_kg = st.number_input("Soğuk Yük (+4°C) KG", min_value=0.0, step=10.0, value=0.0)
-    donuk_kg = st.number_input("Donuk Yük (-18°C) KG", min_value=0.0, step=10.0, value=0.0)
+    kuru_kg = st.number_input("Kuru Yük KG *", min_value=0.0, step=10.0, value=0.0)
+    soguk_kg = st.number_input("Soğuk Yük (+4°C) KG *", min_value=0.0, step=10.0, value=0.0)
+    donuk_kg = st.number_input("Donuk Yük (-18°C) KG *", min_value=0.0, step=10.0, value=0.0)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -422,9 +405,17 @@ if st.button("🚀 Siparişi Onayla ve Gönder", use_container_width=True):
     elif secilen_depo_kodu == "➕ Listede Yok / Yeni Adres Gireceğim" and (not il or not ilce or not acik_adres or not posta_kodu):
         st.error("❌ Yeni adres seçeneğini seçtiniz. Lütfen Şehir, İlçe, Açık Adres ve Posta Kodu alanlarını doldurunuz!")
     
-    # 4. Yük Miktarı Kontrolü
+    # 4. Yük Miktarı Genel Kontrolü
     elif (kuru_palet + soguk_palet + donuk_palet) == 0 and koli_sayisi == 0:
         st.warning("⚠️ Lütfen en az bir adet Palet veya Koli miktarı giriniz!")
+
+    # 5. ZORUNLU KG KONTROLÜ (Palet sayısı girilmişse KG miktarı 0 olamaz)
+    elif kuru_palet > 0 and kuru_kg <= 0:
+        st.error("❌ Kuru Palet girdiniz. Lütfen **Kuru Yük KG** miktarını da yazınız!")
+    elif soguk_palet > 0 and soguk_kg <= 0:
+        st.error("❌ Soğuk Palet (+4°C) girdiniz. Lütfen **Soğuk Yük KG** miktarını da yazınız!")
+    elif donuk_palet > 0 and donuk_kg <= 0:
+        st.error("❌ Donuk Palet (-18°C) girdiniz. Lütfen **Donuk Yük KG** miktarını da yazınız!")
     
     else:
         siparis_verileri = {
