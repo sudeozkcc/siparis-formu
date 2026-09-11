@@ -3,6 +3,8 @@ from datetime import date
 import smtplib
 import pandas as pd
 import io
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
@@ -64,106 +66,155 @@ st.markdown("""
 
 
 # -------------------------------------------------------------
-# EXCEL OLUŞTURMA FONKSİYONU (Bellekte Çalışır)
+# EXCEL OLUŞTURMA FONKSİYONU (Orijinal Sipariş Formu Formatında)
 # -------------------------------------------------------------
 def excel_olustur(siparis_detaylari):
-    # Verileri Excel için Anahtar-Değer Tablosuna Dönüştür
-    veri = {
-        "Alan": [
-            "Sipariş Veren Firma",
-            "Yetkili Adı Soyadı",
-            "İrsaliye Numarası",
-            "Planlanan Teslim Tarihi",
-            "Teslimat Depo / Adres Kodu",
-            "İl",
-            "İlçe",
-            "Posta Kodu",
-            "Açık Adres",
-            "Teslimat Kontak/Tel",
-            "Koli Sayısı",
-            "Kuru Palet Sayısı",
-            "Soğuk Palet (+4°C) Sayısı",
-            "Donuk Palet (-18°C) Sayısı",
-            "Kuru Yük KG",
-            "Soğuk Yük (+4°C) KG",
-            "Donuk Yük (-18°C) KG",
-            "Toplam Palet Sayısı",
-            "Açıklama / Özel Notlar"
-        ],
-        "Değer": [
-            siparis_detaylari['Firma'],
-            siparis_detaylari['Yetkili'],
-            siparis_detaylari['İrsaliye'],
-            siparis_detaylari['Teslim Tarihi'],
-            siparis_detaylari['Depo Kodu'],
-            siparis_detaylari['İl'],
-            siparis_detaylari['İlçe'],
-            siparis_detaylari['Posta Kodu'],
-            siparis_detaylari['Adres'],
-            siparis_detaylari['Yetkili Tel'],
-            siparis_detaylari['Koli'],
-            siparis_detaylari['Kuru Palet'],
-            siparis_detaylari['Soğuk Palet'],
-            siparis_detaylari['Donuk Palet'],
-            siparis_detaylari['Kuru KG'],
-            siparis_detaylari['Soğuk KG'],
-            siparis_detaylari['Donuk KG'],
-            siparis_detaylari['Kuru Palet'] + siparis_detaylari['Soğuk Palet'] + siparis_detaylari['Donuk Palet'],
-            siparis_detaylari['Açıklama']
-        ]
-    }
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Sipariş Formu"
+
+    # Stiller
+    header_font = Font(name="Calibri", size=10, bold=True, color="FFFFFF")
+    bold_font = Font(name="Calibri", size=10, bold=True)
+    regular_font = Font(name="Calibri", size=10)
     
-    df = pd.DataFrame(veri)
+    blue_fill = PatternFill(start_color="002060", end_color="002060", fill_type="solid")
+    gray_fill = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")
     
-    # Excel dosyasını diske yazmadan ram üzerinde (BytesIO) tutalım
+    thin_border = Border(
+        left=Side(style='thin', color='A6A6A6'),
+        right=Side(style='thin', color='A6A6A6'),
+        top=Side(style='thin', color='A6A6A6'),
+        bottom=Side(style='thin', color='A6A6A6')
+    )
+    center_align = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    left_align = Alignment(horizontal="left", vertical="center", wrap_text=True)
+
+    # 1-3. Satırlar: Başlık Bilgileri
+    ws.cell(row=2, column=3, value="Sipariş Veren Firma Adı").font = bold_font
+    ws.cell(row=2, column=4, value=siparis_detaylari['Firma']).font = regular_font
+    
+    ws.cell(row=3, column=3, value="Yetkili Adı ve Soyadı").font = bold_font
+    ws.cell(row=3, column=4, value=siparis_detaylari['Yetkili']).font = regular_font
+    
+    ws.cell(row=4, column=3, value="Sipariş Tarihi").font = bold_font
+    ws.cell(row=4, column=4, value=str(date.today())).font = regular_font
+    
+    ws.cell(row=2, column=9, value="Palet sayısı ile birlikte kg miktarını da yazmayı unutmayınız.").font = Font(italic=True, color="FF0000", size=9)
+
+    # 5. Satır: Tablo Başlıkları
+    headers = [
+        "İRSALİYE NUMARASI",
+        "TESLİMAT NOKTASI (Bayi ya da zincir mağaza adı)",
+        "TESLİMAT NOKTASI YETKİLİ VE İLETİŞİM BİLGİSİ",
+        "GİDİLECEK ŞEHİR",
+        "AÇIKLAMA",
+        "TESLİM TARİHİ",
+        "KOLİ SAYISI",
+        "KURU PALET SAYISI",
+        "SOĞUK PALET SAYISI (+4C)",
+        "DONUK PALET SAYISI (-18C)",
+        "KURU KG",
+        "SOĞUK KG",
+        "DONUK KG"
+    ]
+
+    for col_idx, header in enumerate(headers, start=3):
+        cell = ws.cell(row=5, column=col_idx, value=header)
+        cell.font = header_font
+        cell.fill = blue_fill
+        cell.alignment = center_align
+        cell.border = thin_border
+
+    # 6. Satır: Sipariş Verileri
+    teslimat_noktasi = f"{siparis_detaylari['Depo Kodu']} - {siparis_detaylari['Adres']}"
+    row_values = [
+        siparis_detaylari['İrsaliye'],
+        teslimat_noktasi,
+        siparis_detaylari['Yetkili Tel'],
+        f"{siparis_detaylari['İlce']} / {siparis_detaylari['İl']}",
+        siparis_detaylari['Açıklama'],
+        siparis_detaylari['Teslim Tarihi'],
+        siparis_detaylari['Koli'],
+        siparis_detaylari['Kuru Palet'],
+        siparis_detaylari['Soğuk Palet'],
+        siparis_detaylari['Donuk Palet'],
+        siparis_detaylari['Kuru KG'],
+        siparis_detaylari['Soğuk KG'],
+        siparis_detaylari['Donuk KG']
+    ]
+
+    for col_idx, val in enumerate(row_values, start=3):
+        cell = ws.cell(row=6, column=col_idx, value=val)
+        cell.font = regular_font
+        cell.border = thin_border
+        cell.alignment = center_align if col_idx not in [4, 7] else left_align
+
+    # 7. Satır: Toplam Satırı
+    toplam_label = ws.cell(row=7, column=8, value="TOPLAM")
+    toplam_label.font = bold_font
+    toplam_label.fill = gray_fill
+    toplam_label.alignment = center_align
+    toplam_label.border = thin_border
+
+    toplam_hesaplar = [
+        siparis_detaylari['Koli'],
+        siparis_detaylari['Kuru Palet'],
+        siparis_detaylari['Soğuk Palet'],
+        siparis_detaylari['Donuk Palet'],
+        siparis_detaylari['Kuru KG'],
+        siparis_detaylari['Soğuk KG'],
+        siparis_detaylari['Donuk KG']
+    ]
+
+    for idx, val in enumerate(toplam_hesaplar, start=9):
+        cell = ws.cell(row=7, column=idx, value=val)
+        cell.font = bold_font
+        cell.fill = gray_fill
+        cell.alignment = center_align
+        cell.border = thin_border
+
+    # Genişlik Ayarları
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        col_letter = openpyxl.utils.get_column_letter(col[0].column)
+        ws.column_dimensions[col_letter].width = max(max_len + 3, 12)
+
     excel_buffer = io.BytesIO()
-    with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='Sipariş Detayı')
-    
+    wb.save(excel_buffer)
     excel_buffer.seek(0)
     return excel_buffer.getvalue()
 
 
 # -------------------------------------------------------------
-# E-POSTA GÖNDERİM FONKSİYONU (Çoklu Gönderici & Excel Ekli)
+# E-POSTA GÖNDERİM FONKSİYONU
 # -------------------------------------------------------------
 def siparis_mailleri_gonder(siparis_detaylari, musteri_epostaları_raw):
     SMTP_SUNUCU = "smtp.gmail.com"
     SMTP_PORT = 587
 
-    # ---------------------------------------------------------
-    # ⚠️ 1. SİSTEM GÖNDERİCİ MAİLLERİ
-    # ---------------------------------------------------------
     SISTEM_GONDERICI_HESAPLAR = [
-        {"eposta": "yildizsususu@gmail.com", "sifre": "frbfqtcneiyoqpre"}, # Google Uygulama Şifresi girilmelidir
+        {"eposta": "yildizsususu@gmail.com", "sifre": "frbfqtcneiyoqpre"},
     ]
 
-    # ---------------------------------------------------------
-    # ⚠️ 2. HEDEF OPERASYON / İÇ EKİP ALICILARI
-    # ---------------------------------------------------------
     HEDEF_OPERASYON_ALICILARI = [
         "sudeozkoc@pantheralojistik.com.tr",
     ]
-    # ---------------------------------------------------------
 
-    # 3. Müşteri maillerini ayrıştır
     musteri_eposta_listesi = [
         e.strip() for e in musteri_epostaları_raw.replace(";", ",").split(",") if e.strip()
     ]
 
-    # 4. Excel Dosyasını Oluştur
     excel_data = excel_olustur(siparis_detaylari)
     excel_dosya_adi = f"{siparis_detaylari['Firma']}_Siparisi_{siparis_detaylari['İrsaliye']}.xlsx"
 
-    # E-Posta Konuları (Firma Adı içerecek şekilde düzenlendi)
     konu_yonetici = f"🚨 {siparis_detaylari['Firma']} Siparişi - İrsaliye No: {siparis_detaylari['İrsaliye']}"
     konu_musteri = f"✅ {siparis_detaylari['Firma']} Siparişi Alındı - İrsaliye No: {siparis_detaylari['İrsaliye']}"
 
-    # E-posta İçerikleri
     body_yonetici = f"""
     <div style="font-family: Arial, sans-serif; color: #333;">
         <h2 style="color: #002060;">Panthera Lojistik - {siparis_detaylari['Firma']} Siparişi</h2>
-        <p><b>{siparis_detaylari['Firma']}</b> firmasından yeni bir sipariş kaydı oluşturuldu. Siparişe ait Excel detay dosyası ektedir.</p>
+        <p><b>{siparis_detaylari['Firma']}</b> firmasından yeni bir sipariş kaydı oluşturuldu. Standart form formatındaki Excel dosyası ektedir.</p>
         <hr style="border: 1px solid #002060;">
         <ul>
             <li><b>Sipariş Veren Firma:</b> {siparis_detaylari['Firma']}</li>
@@ -186,7 +237,7 @@ def siparis_mailleri_gonder(siparis_detaylari, musteri_epostaları_raw):
         <p><b>Sipariş Özetiniz:</b></p>
         <ul>
             <li><b>İrsaliye No:</b> {siparis_detaylari['İrsaliye']}</li>
-            <li><b>Teslimat Adresi:</b> {siparis_detaylari['İlçe']} / {siparis_detaylari['İl']}</li>
+            <li><b>Teslimat Adresi:</b> {siparis_detaylari['İlce']} / {siparis_detaylari['İl']}</li>
             <li><b>Teslim Tarihi:</b> {siparis_detaylari['Teslim Tarihi']}</li>
             <li><b>Toplam Palet:</b> {siparis_detaylari['Kuru Palet'] + siparis_detaylari['Soğuk Palet'] + siparis_detaylari['Donuk Palet']} Palet</li>
         </ul>
@@ -198,14 +249,13 @@ def siparis_mailleri_gonder(siparis_detaylari, musteri_epostaları_raw):
 
     last_error = ""
 
-    # Gönderici hesaplar üzerinden mail gönderme denemesi
     for gonderici in SISTEM_GONDERICI_HESAPLAR:
         try:
             server = smtplib.SMTP(SMTP_SUNUCU, SMTP_PORT)
             server.starttls()
             server.login(gonderici["eposta"], gonderici["sifre"])
 
-            # --- 1. Mail: Operasyon Ekibine Gönderim (Excel Ekli) ---
+            # 1. Mail: Operasyon Ekibine
             msg1 = MIMEMultipart()
             msg1['From'] = f"Panthera Sipariş Portalı <{gonderici['eposta']}>"
             msg1['To'] = ", ".join(HEDEF_OPERASYON_ALICILARI)
@@ -213,21 +263,19 @@ def siparis_mailleri_gonder(siparis_detaylari, musteri_epostaları_raw):
             msg1['Subject'] = konu_yonetici
             msg1.attach(MIMEText(body_yonetici, 'html'))
 
-            # Excel Dosyası Ekleme
             attachment1 = MIMEApplication(excel_data, Name=excel_dosya_adi)
             attachment1['Content-Disposition'] = f'attachment; filename="{excel_dosya_adi}"'
             msg1.attach(attachment1)
 
             server.send_message(msg1)
 
-            # --- 2. Mail: Müşteriye Onay Gönderimi (Excel Ekli) ---
+            # 2. Mail: Müşteriye
             msg2 = MIMEMultipart()
             msg2['From'] = f"Panthera Lojistik <{gonderici['eposta']}>"
             msg2['To'] = ", ".join(musteri_eposta_listesi)
             msg2['Subject'] = konu_musteri
             msg2.attach(MIMEText(body_musteri, 'html'))
 
-            # Excel Dosyası Ekleme
             attachment2 = MIMEApplication(excel_data, Name=excel_dosya_adi)
             attachment2['Content-Disposition'] = f'attachment; filename="{excel_dosya_adi}"'
             msg2.attach(attachment2)
@@ -350,9 +398,9 @@ with col_d2:
     donuk_palet = st.number_input("Donuk Palet (-18°C) Sayısı", min_value=0, step=1, value=0)
 
 with col_d3:
-    kuru_kg = st.number_input("Kuru Yük KG", min_value=0.0, step=0.5, value=0.0)
-    soguk_kg = st.number_input("Soğuk Yük (+4°C) KG", min_value=0.0, step=0.5, value=0.0)
-    donuk_kg = st.number_input("Donuk Yük (-18°C) KG", min_value=0.0, step=0.5, value=0.0)
+    kuru_kg = st.number_input("Kuru Yük KG", min_value=0.0, step=10.0, value=0.0)
+    soguk_kg = st.number_input("Soğuk Yük (+4°C) KG", min_value=0.0, step=10.0, value=0.0)
+    donuk_kg = st.number_input("Donuk Yük (-18°C) KG", min_value=0.0, step=10.0, value=0.0)
 
 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -385,7 +433,7 @@ if st.button("🚀 Siparişi Onayla ve Gönder", use_container_width=True):
             "İrsaliye": irsaliye_clean,
             "Depo Kodu": secilen_depo_kodu,
             "İl": il,
-            "İlçe": ilce,
+            "İlce": ilce,
             "Posta Kodu": posta_kodu,
             "Adres": acik_adres,
             "Yetkili Tel": yetkili_tel if yetkili_tel else "Belirtilmedi",
@@ -397,7 +445,7 @@ if st.button("🚀 Siparişi Onayla ve Gönder", use_container_width=True):
             "Kuru KG": kuru_kg,
             "Soğuk KG": soguk_kg,
             "Donuk KG": donuk_kg,
-            "Açıklama": aciklama if aciklama else "Yok"
+            "Açıklama": aciklama if aciklama else ""
         }
         
         with st.spinner("Sipariş işleniyor ve Excel dosyası e-postaya ekleniyor..."):
